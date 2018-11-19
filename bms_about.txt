@@ -1,0 +1,5 @@
+/*****************************BANK MANAGEMENT SOFTWARE********************************\
+This software is copyrighted and owned by Debjyoti Gorai, 2018.
+The end user is allowed to use the software without any cost.
+The end user is not allowed to edit or modify the code.
+The end user is also not allowed to sell or redistribute this product under his/her name.
