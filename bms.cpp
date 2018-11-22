@@ -52,7 +52,7 @@ char * crypt_pin()
 	char pin[4];
 	int i=0;
 	char a;
-	while(1)
+	while(i<4)
 	{
 		a=getch();
 		if (a>='0'&&a<='9')
@@ -78,13 +78,29 @@ char * crypt_pin()
 
 void format_transaction()
 {
-	Sleep (200);
+	srand(time(NULL));
+	int n= (rand() %10) + 1; 
 	cout << "\nTransaction in progress ";
-	for (int i=0; i<=10; i++)
+	for (int i=0; i<=n; i++)
 	{
 		Sleep (200);
 		cout << "> ";
 	}
+}
+
+char * write_date()
+{
+	time_t t = time(0);
+    tm* now = localtime(&t);
+    fstream fout("temp.dat", ios::out|ios::app);
+    fout << now->tm_mday << '-' << (now->tm_mon + 1) << '-' << (now->tm_year + 1900);
+    fout.close();
+    fstream fin("temp.dat", ios::in);
+    char str[20];
+    fin.getline(str, 20);
+    fin.close();
+    remove("temp.dat");
+    return str;
 }
 
 class BANK_BRANCH
@@ -284,20 +300,11 @@ class account_holder
 			else if(sf==0)
 				return sf;
 		}
-			
-	/*void achview()
-	{
-		cout << "\nusername: " << username
-		     << "\npassword: " << password
-		     << "\nstatus: " << status
-		     << "\nquestion: " << question
-		     << "\nanswer: " << answer;
-	}*/
 };
 
 class account_creation_view
 {
-	char name[100], email[100], address[100], guardian_name[100], phoneno[20];
+	char name[100], email[100], address[100], guardian_name[100], phoneno[20], pin[4];
 	double birth_year, balance, acv_branch_code, accno;
 	public:
 		void creation()
@@ -326,6 +333,24 @@ class account_creation_view
 			cout << "\nEnter your deposit balance: ";
 			cin >> balance;
 			cout << "\n....ACCOUNT CREATION SUCCESSFULL....";
+		}
+		void set_pin()
+		{
+			strcpy(pin, "null");
+		}
+		void enter_pin()
+		{
+			menu:
+			char temp_pin[4];
+			cout << "\nEnter pin: ";
+			strcpy(pin, crypt_pin());
+			cout << "\nConfirm pin: ";
+			strcpy(temp_pin, crypt_pin());
+			if (strcmp(pin, temp_pin)!=0)
+			{	
+				cout << "\nPINs do not match. Try again.";
+				goto menu;
+			}
 		}
 		void view()
 		{
@@ -385,6 +410,10 @@ class account_creation_view
 				default: cout << "\nWrong choice entered. Try again.";
 						 goto edit_lb;	
 			}
+		}
+		char * return_pin()
+		{
+			return pin;
 		}
 		double return_balance()
 		{
@@ -494,137 +523,221 @@ void reopen_account()
 	}
 }
 
+class TRANSACTION
+{
+	double from, to, previous_bal, current_bal;
+	char mode[20], date[20];
+	public:
+		void withdrawl(double f, double pb, double cb, char dt[20])
+		{
+			strcpy(mode, "Withdrawl");
+			from=f;
+			to=NULL;
+			previous_bal=pb;
+			current_bal=cb;
+			strcpy(date, dt);
+		}
+		void transfer(double f, double t, double pb, double cb, char dt[20])
+		{
+			strcpy(mode, "Transfered to");
+			from=f;
+			to=NULL;
+			previous_bal=pb;
+			current_bal=cb;
+			strcpy(date, dt);
+		}
+		void deposit(double f, double pb, double cb, char dt[20])
+		{
+			strcpy(mode, "Deposit");
+			from=to=f;
+			previous_bal=pb;
+			current_bal=cb;
+			strcpy(date, dt);
+		}
+		void deposit2(double f, double t, double pb, double cb, char dt[20])
+		{
+			strcpy(mode, "Deposit");
+			from=f;
+			to=t;
+			previous_bal=pb;
+			current_bal=cb;
+			strcpy(date, dt);
+		}
+		void view_transaction()
+		{
+			cout << "\nFrom: " << from
+				 << "\nTo: " << to
+				 << "\nMode " << mode
+				 << "\nprevious balance: " << previous_bal 
+				 << "\nCurrent balance: " << current_bal
+				 << "\nDate: " << date << endl;
+		}
+};
+
 class OPERATIONS
 {
-	int money, choose;
-	double temp_accno;
+    int choose;
+	double temp_accno, money;
 	public:
 		void operations_menu(char temp_username[])
 		{
-			lb:
-			cout << "\nOperations Menu: "
-				 << "\n1. Withdrawl Money."
-				 << "\n2. Deposit Money."
-				 << "\n3. Transfer Money."
-				 << "\n4. Goto previous menu."
-				 << "\nEnter correct option: ";
-			cin >> choose;
-			switch(choose)
+			fstream fin("account_details.dat", ios::in);
+			account_creation_view acv;
+			fin.read((char *)&acv, sizeof(acv));
+			if (strcmp(acv.return_pin(), "null")!=0)
 			{
-				case 1:
+				lb:
+				cout << "\nOperations Menu: "
+					 << "\n1. Withdrawl Money."
+					 << "\n2. Deposit Money."
+					 << "\n3. Transfer Money."
+					 << "\n4. Goto previous menu."
+					 << "\nEnter correct option: ";
+				cin >> choose;
+				switch(choose)
 				{
-					account_creation_view acv;
-					fstream fobj("account_details.dat", ios::in|ios::out);
-					fobj.read((char *)&acv, sizeof(acv));
-					cout << "\nEnter withdrawl amount: Rs. ";
-					cin >> money;
-					if (acv.return_balance()-money>=0)
+					case 1:
 					{
+						account_creation_view acv;
+						fstream fobj("account_details.dat", ios::in|ios::out);
+						fobj.read((char *)&acv, sizeof(acv));
+						cout << "\nEnter withdrawl amount: Rs. ";
+						cin >> money;
+						if (acv.return_balance()-money>=0)
+						{
+							cout << "\nConfirm the transaction (Y/N): ";
+							char ch;
+							cin >> ch;
+							if (ch=='Y'||ch=='y')
+							{
+								TRANSACTION t;
+								fstream fout("transaction.dat", ios::out|ios::app);
+								t.withdrawl(acv.return_accno(), acv.return_balance(), acv.return_balance()-money, write_date());
+								
+								acv.enter_balance(acv.return_balance()-money);
+								format_transaction();
+								cout << "\nTransaction Successfull."
+									 << "\nCurrent balance: Rs. " << acv.return_balance();
+								fobj.seekp(0);
+								fobj.write((char *)&acv, sizeof(acv));
+								fout.write((char *)&t, sizeof(t));
+								fout.close();
+							}	
+						}
+						else
+							cout << "\nYou don't have enough balance to perform this transaction.";
+						fobj.close();
+						goto lb;
+					}
+					case 2:
+					{
+						account_creation_view acv;
+						fstream fobj("account_details.dat", ios::in|ios::out);
+						fobj.read((char *)&acv, sizeof(acv));
+						cout << "\nEnter deposit amount: Rs. ";
+						cin >> money;
 						cout << "\nConfirm the transaction (Y/N): ";
 						char ch;
 						cin >> ch;
 						if (ch=='Y'||ch=='y')
 						{
-							acv.enter_balance(acv.return_balance()-money);
+							TRANSACTION t;
+							fstream fout("transaction.dat", ios::out|ios::app);
+							t.deposit(acv.return_accno(), acv.return_balance(), acv.return_balance()+money, write_date());
+							acv.enter_balance(acv.return_balance()+money);
 							format_transaction();
 							cout << "\nTransaction Successfull."
 								 << "\nCurrent balance: Rs. " << acv.return_balance();
 							fobj.seekp(0);
 							fobj.write((char *)&acv, sizeof(acv));
-						}	
+							fobj.close();
+							fout.write((char *)&t, sizeof(t));
+							fout.close();
+						}
+						fobj.close();
+						goto lb;
 					}
-					else
-						cout << "\nYou don't have enough balance to perform this transaction.";
-					fobj.close();
-					goto lb;
-				}
-				case 2:
-				{
-					account_creation_view acv;
-					fstream fobj("account_details.dat", ios::in|ios::out);
-					fobj.read((char *)&acv, sizeof(acv));
-					cout << "\nEnter deposit amount: Rs. ";
-					cin >> money;
-					cout << "\nConfirm the transaction (Y/N): ";
-					char ch;
-					cin >> ch;
-					if (ch=='Y'||ch=='y')
+					case 3:
 					{
-						acv.enter_balance(acv.return_balance()+money);
-						format_transaction();
-						cout << "\nTransaction Successfull."
-							 << "\nCurrent balance: Rs. " << acv.return_balance();
-						fobj.seekp(0);
-						fobj.write((char *)&acv, sizeof(acv));
-					}
-					fobj.close();
-					goto lb;
-				}
-				case 3:
-				{
-					account_creation_view acv;
-					fstream fobj("account_details.dat", ios::in|ios::out);
-					fobj.read((char *)&acv, sizeof(acv));
-					cout << "\nEnter the amount you want to transfer: Rs. ";
-					cin >> money;
-					if (acv.return_balance()-money>=0)
-					{
-						cout << "\nEnter the receiver's account number ";
-						cin >> temp_accno;
-						char ch;
-						cout << "\nConfirm the transaction (Y/N) : ";
-						cin >> ch;
-						if (ch=='Y'||ch=='y')
+						account_creation_view acv;
+						fstream fobj("account_details.dat", ios::in|ios::out);
+						fobj.read((char *)&acv, sizeof(acv));
+						int temp_acc;
+						temp_acc=acv.return_accno();
+						cout << "\nEnter the amount you want to transfer: Rs. ";
+						cin >> money;
+						if (acv.return_balance()-money>=0)
 						{
-							chdir("..\\");
-							fstream fin("account_holder.dat", ios::in);
-							account_holder ah1;
-							int flag=0;
-							while(!fin.eof())
+							cout << "\nEnter the receiver's account number ";
+							cin >> temp_accno;
+							char ch;
+							cout << "\nConfirm the transaction (Y/N) : ";
+							cin >> ch;
+							if (ch=='Y'||ch=='y')
 							{
-								fin.read((char *)&ah1, sizeof(ah1));
-								if(temp_accno==ah1.return_accno())
-								{
-									flag=1;
-									break;
-								}
-							}
-							if (flag==1)
-							{
-								chdir(ah1.return_username());
-								fstream fobj1("account_details.dat", ios::in|ios::out);
-								account_creation_view acv1;
-								fobj1.read((char *)&acv1, sizeof(acv1));
-								acv1.enter_balance(acv1.return_balance()+money);
-								fobj1.seekp(0);
-								fobj1.write((char *)&acv1, sizeof(acv1));
-								fobj1.close();
 								chdir("..\\");
-								chdir(temp_username);
-								acv.enter_balance(acv.return_balance()-money);
-								fobj.seekp(0);
-								fobj.write((char *)&acv, sizeof(acv));
-								format_transaction();
-								cout << "\nCurrent balance: Rs. " << acv.return_balance();
-								cout << "\nTransaction successfull.";
+								fstream fin("account_holder.dat", ios::in);
+								account_holder ah1;
+								int flag=0;
+								while(!fin.eof())
+								{
+									fin.read((char *)&ah1, sizeof(ah1));
+									if(temp_accno==ah1.return_accno())
+									{
+										flag=1;
+										break;
+									}
+								}
+								if (flag==1)
+								{
+									chdir(ah1.return_username());
+									fstream fobj1("account_details.dat", ios::in|ios::out);
+									account_creation_view acv1;
+									fobj1.read((char *)&acv1, sizeof(acv1));
+									TRANSACTION t;
+									fstream fout("transaction.dat", ios::out|ios::app);
+									t.deposit2(acv1.return_accno(), temp_acc, acv1.return_balance(), acv1.return_balance()+money, write_date());
+									fout.write((char *)&t, sizeof(t));
+									fout.close();
+									acv1.enter_balance(acv1.return_balance()+money);
+									fobj1.seekp(0);
+									fobj1.write((char *)&acv1, sizeof(acv1));
+									fobj1.close();
+									chdir("..\\");
+									chdir(temp_username);
+					                TRANSACTION t2;
+									fstream fout2("transaction.dat", ios::out|ios::app);
+									t2.transfer(acv.return_accno(), temp_accno, acv.return_balance(), acv.return_balance()-money, write_date());
+									acv.enter_balance(acv.return_balance()-money);
+									fobj.seekp(0);
+									fobj.write((char *)&acv, sizeof(acv));
+									fobj.close();
+									fout2.write((char *)&t2, sizeof(t2));
+									fout2.close();
+									format_transaction();
+									cout << "\nCurrent balance: Rs. " << acv.return_balance();
+									cout << "\nTransaction successfull.";
+								}
+								else if(flag==0)
+								{
+									cout << "\nThere is no such user exists with the given account number.";
+									cout << "\nTransaction failed.";
+								}
+								fin.close();
 							}
-							else if(flag==0)
+							else
 							{
-								cout << "\nThere is no such user exists with the given account number.";
-								cout << "\nTransaction failed.";
+								cout << "\nTransaction oborted by user.";
+								chdir(temp_username);
 							}
-							fin.close();
 						}
 						else
-						{
-							cout << "\nTransaction oborted by user.";
-							chdir(temp_username);
-						}
+							cout << "\nYou don't have enough balance to perform this transaction.";
 					}
-					else
-						cout << "\nYou don't have enough balance to perform this transaction.";
 				}
-			}	
+			}
+			else
+				cout << "\nPlease setup PIN to access operations";	
 		}
 };
 
@@ -636,8 +749,10 @@ void login_menu(char username[])
 		 << "\n1. View personal details."
 		 << "\n2. Edit personal details."
 		 << "\n3. Operations."
-		 << "\n4. Close your account."
-		 << "\n5. Logout."
+		 << "\n4. View all transactions."
+		 << "\n5. Setup PIN."
+		 << "\n6. Close your account."
+		 << "\n7. Logout."
 		 << "\nEnter correct choice: ";
 	cin >> choose;
 	switch (choose)
@@ -668,7 +783,36 @@ void login_menu(char username[])
 			OPERATIONS o;
 			o.operations_menu(username);
 			goto lb;
-		case 4: 
+		case 4:
+		{
+			fstream fin("transaction.dat", ios::in);
+			TRANSACTION t;
+			if(!fin.eof())
+			{
+				while(!fin.eof())
+				{
+					fin.read((char *)&t, sizeof(t));
+					t.view_transaction();
+				}
+			}
+			else
+				cout << "\nNo Transaction done.";
+			goto lb;
+		}
+		case 5:
+		{
+			account_creation_view acv;
+			fstream fobj("account_details.dat", ios::in|ios::out);
+			fobj.read((char *)&acv, sizeof(acv));
+			acv.enter_pin();
+			fobj.seekp(0);
+			fobj.sync();
+			fobj.write((char *)&acv, sizeof(acv));
+			fobj.close();
+			cout << "\nPIN setup successfull";
+			goto lb;
+		}
+		case 6: 
 		{
 			char choice;
 			cout << "\nAre you sure you want to close your account (Y/N): ";
@@ -682,7 +826,7 @@ void login_menu(char username[])
 			else
 				goto lb;
 		}
-		case 5: cout << "\nLogging out ...";
+		case 7: cout << "\nLogging out ...";
 				break;
 		default: cout << "\nWrong choice entered. Try again.";
 				 goto lb;
@@ -744,13 +888,14 @@ int account_write()
 		obj.creation_part();
 		obj.enter_accno(obj1.return_accno());
 		obj.enter_acv_bcode(obj1.return_bank_code());
+		obj.set_pin();
 		fstream fout("account_holder.dat", ios::out|ios::app);
 		fout.write((char *)&obj1, sizeof(obj1));
 		fout.close();
 		mkdir(obj1.return_username());
 		chdir(obj1.return_username());
 		fstream fout1("account_details.dat", ios::out);
-		fstream fout2("transaction_details.dat", ios::in);
+		fstream fout2("transaction.dat", ios::in);
 		fout1.write((char *)&obj, sizeof(obj));
 		fout1.close();
 		chdir("..\\");
@@ -891,9 +1036,10 @@ class ADMINISTRATOR_MENU
 				}
 				case 6:
 				{
-					fstream fout("bank_branch.dat", ios::out|ios::app);
+					fstream fout("bank_branch.dat", ios::out);
 					BANK_BRANCH bb;
 					bb.create_branch();
+					fout.sync();
 					fout.write((char *)&bb, sizeof(bb));
 					fout.close();
 					goto lb;
@@ -909,10 +1055,11 @@ class ADMINISTRATOR_MENU
 						strcpy(temp_username, ah.return_username());
 						chdir(temp_username);
 						remove("account_details.dat");
-						remove("transaction_details.dat");
+						remove("transaction.dat");
 						chdir("..\\");
 						rmdir(temp_username);
 					}
+					fin.sync();
 					fin.close();
 					remove("account_holder.dat");
 					remove("bank_branch.dat");
@@ -927,7 +1074,12 @@ class ADMINISTRATOR_MENU
 					goto lb;
 				}
 				case 8:
-					break;	
+					break;
+				default:
+				{
+					cout << "\nWrong choice entered. Try again.";
+					goto lb;
+				}	
 			}
 		}
 };
