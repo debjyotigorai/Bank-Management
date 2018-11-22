@@ -47,6 +47,35 @@ char * crypt_pass()
     return password;
 }
 
+char * crypt_pin()
+{
+	char pin[4];
+	int i=0;
+	char a;
+	while(1)
+	{
+		a=getch();
+		if (a>='0'&&a<='9')
+		{
+			pin[i]=a;
+            ++i;
+            cout << "X";
+		}
+		if(a=='\b'&&i>=1)
+        {
+            cout << "\b \b";
+            --i;
+        }
+        if(a=='\r')
+        {
+            pin[i]='\0';
+            break;
+        }
+		
+	}
+	return pin;
+}
+
 void format_transaction()
 {
 	Sleep (200);
@@ -58,19 +87,80 @@ void format_transaction()
 	}
 }
 
+class BANK_BRANCH
+{
+	double branch_code;
+	char branch_name[50], branch_address[100];
+	public:
+		void create_branch()
+		{
+			cout << "\nEnter 4 digit branch code: ";
+			cin >> branch_code;
+			cout << "\nEnter branch name: ";
+			cin.sync();
+			cin.getline(branch_name, 50);
+			cout << "\nEnter branch address: ";
+			cin.sync();
+			cin.getline(branch_address, 100);
+		}
+		double return_branch_code()
+		{
+			return branch_code;
+		}
+		void view_branch()
+		{
+			cout << "\nBranch Code: " << branch_code
+				 << "\nBranch Name: " << branch_name
+				 << "\nBranch Address: " << branch_address;
+		}
+		int search_bcode(double bcode)
+		{
+			int flag=0;
+			fstream fin("bank_branch.dat", ios::in);
+			if(fin)
+			{
+				BANK_BRANCH bb;
+				while(!fin.eof())
+				{
+					fin.read((char *)&bb, sizeof(bb));
+					if(bb.return_branch_code()==bcode)
+					{
+						flag=1;
+						break;
+					}
+				}
+				if (flag==1)
+				{
+					fin.close();
+				}
+				else
+				{
+					char ch;
+					fin.close();
+					cout << "\nYou have entered a wrong branch code."
+						 << "\nIf you don't know search it instead by pressing Y : ";
+					cin >> ch;
+					if (ch=='Y'||ch=='y')
+					{
+						view_branch();
+						return 2;
+					}
+				}
+				return 1;
+			}
+			else
+			{
+				cout << "\nNo bank branch exists.";
+				return 0;
+			}
+		}	
+};
+
 class account_holder
 {
 	char username[100], password[100], question[200], answer[100], status;
 	double bank_code, accno;
 	public: 
-		void enter_bank_code(double b_code)
-		{
-			bank_code=b_code;
-		}
-		void enter_accno(double a_code)
-		{
-			accno=a_code;
-		}
 		double return_bank_code()
 		{
 			return bank_code;
@@ -107,44 +197,94 @@ class account_holder
 		{
 			status='Y';
 		}
-		void creation_2()
+		void gen_accno()
 		{
-			menu:
 			int flag=0;
-			cout << "\nCreate a username: ";
-			cin.sync();
-			cin.getline(username, 100);
-			fstream fin("account_holder.dat", ios::in);
-			if(fin)
+			srand(time(NULL));
+			accno=(rand() % (1000000-100000)) + 100000;
+			fstream fobj("account_holder.dat", ios::in);
+			account_holder ah;
+			if (fobj)
 			{
-				while(!fin.eof())
+				while(!fobj.eof())
 				{
-					account_holder temp;
-					fin.read((char *)&temp, sizeof(temp));
-					if(strcmp(temp.return_username(), username)==0)
+					fobj.read((char *)&ah, sizeof(ah));
+					if(accno==ah.return_accno())
 					{
 						flag=1;
 						break;
 					}
 				}
+				if (flag==1)
+				{
+					fobj.close();
+					gen_accno();
+				}
+				else if(flag==0)
+				{
+					fobj.close();
+				}
 			}
-			if(flag==1)
+			fobj.close();
+		}
+		int creation_2()
+		{
+			menu:
+			int flag=0, sf;
+			cout << "\nACCOUNT CREATION: ";
+			cout << "\nEnter bank code: ";
+			cin >> bank_code;
+			BANK_BRANCH bb;
+			sf=bb.search_bcode(bank_code);
+			if (sf==1)
 			{
-				cout << "\nThe username already exists. Create a different one.";
+				gen_accno();
+				cout << "\nCreate a username: ";
+				cin.sync();
+				cin.getline(username, 100);
+				fstream fin("account_holder.dat", ios::in);
+				if(fin)
+				{
+					while(!fin.eof())
+					{
+						account_holder temp;
+						fin.read((char *)&temp, sizeof(temp));
+						if(strcmp(temp.return_username(), username)==0)
+						{
+							flag=1;
+							break;
+						}
+					}
+				}
+				if(flag==1)
+				{
+					cout << "\nThe username already exists. Create a different one.";
+					goto menu;
+				}
+				else
+				{
+					cout << "\nCreate a password: ";
+					cin.sync();
+					strcpy(password, crypt_pass());
+					status='Y';
+					cout << "\n\nEnter a security question: ";
+					cin.sync();
+					cin.getline(question, 200);
+					cout << "\nChoose a answer for your question: ";
+					cin.sync();
+					cin.getline(answer, 100);
+				}
+				return sf;
+			}
+			else if(sf==2)
+			{
+				sf=1;
 				goto menu;
 			}
-			cout << "\nCreate a password: ";
-			cin.sync();
-			strcpy(password, crypt_pass());
-			status='Y';
-			cout << "\nEnter a security question: ";
-			cin.sync();
-			cin.getline(question, 200);
-			cout << "\nChoose a answer for your question: ";
-			cin.sync();
-			cin.getline(answer, 100);
-			cout << "\n....ACCOUNT CREATION SUCCESSFULL....";
+			else if(sf==0)
+				return sf;
 		}
+			
 	/*void achview()
 	{
 		cout << "\nusername: " << username
@@ -155,59 +295,10 @@ class account_holder
 	}*/
 };
 
-class BANK_BRANCH
-{
-	double branch_code;
-	char branch_name[50], branch_address[100];
-	public:
-		void create_branch()
-		{
-			cout << "\nEnter 4 digit branch code: ";
-			cin >> branch_code;
-			cout << "\nEnter branch name: ";
-			cin.getline(branch_name, 50);
-			cout << "\nEnter branch address: ";
-			cin.getline(branch_address, 100);
-		}
-		double return_branch_code()
-		{
-			return branch_code;
-		}
-};
-
 class account_creation_view
 {
 	char name[100], email[100], address[100], guardian_name[100], phoneno[20];
 	double birth_year, balance, acv_branch_code, accno;
-	void gen_accno()
-	{
-		int flag=0;
-		accno=(rand() % (1000000-100000)) + 100000;
-		fstream fobj("account_holder.dat", ios::in);
-		account_holder ah;
-		if (fobj)
-		{
-			while(!fobj.eof())
-			{
-				fobj.read((char *)&ah, sizeof(ah));
-				if(accno==ah.return_accno())
-				{
-					flag=1;
-					break;
-				}
-			}
-			if (flag==1)
-			{
-				fobj.close();
-				gen_accno();
-			}
-			else if(flag==0)
-			{
-				fobj.close();
-			}
-		}
-		fobj.close();
-	}
 	public:
 		void creation()
 		{
@@ -228,13 +319,13 @@ class account_creation_view
 			cin.getline(phoneno, 20);
 			cout << "\nEnter your email address: ";
 			cin.sync();
-			cin.getline(email, 100);
-			cout << "\nBANK ACCOUNT CREATION: ";
-			cout << "\nEnter bank branch code: ";
-			cin >> acv_branch_code;
+			cin.getline(email, 100);	
+		}
+		void creation_part()
+		{
 			cout << "\nEnter your deposit balance: ";
-			cin >> balance;	
-			gen_accno();
+			cin >> balance;
+			cout << "\n....ACCOUNT CREATION SUCCESSFULL....";
 		}
 		void view()
 		{
@@ -311,6 +402,14 @@ class account_creation_view
 		{
 			return acv_branch_code;
 		}
+		void enter_acv_bcode(double b_code)
+		{
+			acv_branch_code=b_code;
+		}
+		void enter_accno(double a_code)
+		{
+			accno=a_code;
+		}
 };
 
 void close_account(char username[])
@@ -333,6 +432,7 @@ void close_account(char username[])
 	fobj.seekg(0);
 	fobj.seekp(0, ios::end);
 	fobj.close();
+	cout << "\nAccount closed.";
 }
 
 void reopen_account()
@@ -577,7 +677,6 @@ void login_menu(char username[])
 			{
 				chdir("..\\");
 				close_account(username);
-				cout << "\nAccount closed.";
 				break;
 			}
 			else
@@ -632,25 +731,33 @@ void login()
 		cout << "\nNo account has been created with us. Please create a new account.";
 }
 
-void account_write()
+int account_write()
 {
 	//Function to write username and password into a file and account details into another file
+	int sf;
 	account_holder obj1;
 	account_creation_view obj;
 	obj.creation();
-	obj1.creation_2();
-	obj1.enter_accno(obj.return_accno());
-	obj1.enter_bank_code(obj.return_acv_b_code());
-	fstream fout("account_holder.dat", ios::out|ios::app);
-	fout.write((char *)&obj1, sizeof(obj1));
-	fout.close();
-	mkdir(obj1.return_username());
-	chdir(obj1.return_username());
-	fstream fout1("account_details.dat", ios::out);
-	fstream fout2("transaction_details.dat", ios::in);
-	fout1.write((char *)&obj, sizeof(obj));
-	fout1.close();
-	chdir("..\\");
+	sf=obj1.creation_2();
+	if (sf==1)
+	{
+		obj.creation_part();
+		obj.enter_accno(obj1.return_accno());
+		obj.enter_acv_bcode(obj1.return_bank_code());
+		fstream fout("account_holder.dat", ios::out|ios::app);
+		fout.write((char *)&obj1, sizeof(obj1));
+		fout.close();
+		mkdir(obj1.return_username());
+		chdir(obj1.return_username());
+		fstream fout1("account_details.dat", ios::out);
+		fstream fout2("transaction_details.dat", ios::in);
+		fout1.write((char *)&obj, sizeof(obj));
+		fout1.close();
+		chdir("..\\");
+		return sf;
+	}
+	else
+		return sf;
 }
 
 class ADMINISTRATOR_MENU
@@ -678,13 +785,19 @@ class ADMINISTRATOR_MENU
 				{
 					account_holder ach;
 					fstream fin("account_holder.dat", ios::in);
-					while(!fin.eof())
+					if(fin)
 					{
 						fin.read((char *)&ach, sizeof(ach));
-						cout << "\nUSERNAME "<< "\t\t"<<"PASSWORD " << endl;
-						cout << ach.return_username() <<"\t\t\t" << ach.return_password() << endl;
+						while(!fin.eof())
+						{
+							cout << "\nUSERNAME "<< "\t\t"<<"PASSWORD " << endl;
+							cout << ach.return_username() <<"\t\t\t" << ach.return_password() << endl;
+							fin.read((char *)&ach, sizeof(ach));
+						}
+						fin.close();
 					}
-					fin.close();
+					else
+						cout << "\nNo account exists.";
 					goto lb;
 				}
 				case 2:
@@ -778,11 +891,12 @@ class ADMINISTRATOR_MENU
 				}
 				case 6:
 				{
-					fstream fout("bank_branch.dat", ios::out);
+					fstream fout("bank_branch.dat", ios::out|ios::app);
 					BANK_BRANCH bb;
 					bb.create_branch();
 					fout.write((char *)&bb, sizeof(bb));
 					fout.close();
+					goto lb;
 				}
 				case 7:
 				{
@@ -801,6 +915,7 @@ class ADMINISTRATOR_MENU
 					}
 					fin.close();
 					remove("account_holder.dat");
+					remove("bank_branch.dat");
 					Sleep (500);
 					cout << "\nReset in progress ";
 					for (int i=0; i<=5; i++)
@@ -837,9 +952,13 @@ class BANKING_MENU
 					login();
 					goto lb;
 				case 2: 
-					account_write();
+				{
+					int sf;
+					sf=account_write();
+					if (sf==0)
+						cout << "\nAccount creation failed.";
 					goto lb;
-					
+				}	
 				case 3:
 					reopen_account();
 					goto lb;	
