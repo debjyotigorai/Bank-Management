@@ -532,7 +532,7 @@ class TRANSACTION
 		{
 			strcpy(mode, "Withdrawl");
 			from=f;
-			to=NULL;
+			to=0;
 			previous_bal=pb;
 			current_bal=cb;
 			strcpy(date, dt);
@@ -541,7 +541,7 @@ class TRANSACTION
 		{
 			strcpy(mode, "Transfered to");
 			from=f;
-			to=NULL;
+			to=t;
 			previous_bal=pb;
 			current_bal=cb;
 			strcpy(date, dt);
@@ -567,8 +567,8 @@ class TRANSACTION
 		{
 			cout << "\nFrom: " << from
 				 << "\nTo: " << to
-				 << "\nMode " << mode
-				 << "\nprevious balance: " << previous_bal 
+				 << "\nMode: " << mode
+				 << "\nPrevious balance: " << previous_bal 
 				 << "\nCurrent balance: " << current_bal
 				 << "\nDate: " << date << endl;
 		}
@@ -578,6 +578,7 @@ class OPERATIONS
 {
     int choose;
 	double temp_accno, money;
+	char temp_pin[4];
 	public:
 		void operations_menu(char temp_username[])
 		{
@@ -605,24 +606,31 @@ class OPERATIONS
 						cin >> money;
 						if (acv.return_balance()-money>=0)
 						{
-							cout << "\nConfirm the transaction (Y/N): ";
-							char ch;
-							cin >> ch;
-							if (ch=='Y'||ch=='y')
+							cout << "\nEnter PIN: ";
+							strcpy(temp_pin, crypt_pin());
+							if(strcmp(temp_pin, acv.return_pin())==0)
 							{
-								TRANSACTION t;
-								fstream fout("transaction.dat", ios::out|ios::app);
-								t.withdrawl(acv.return_accno(), acv.return_balance(), acv.return_balance()-money, write_date());
-								
-								acv.enter_balance(acv.return_balance()-money);
-								format_transaction();
-								cout << "\nTransaction Successfull."
-									 << "\nCurrent balance: Rs. " << acv.return_balance();
-								fobj.seekp(0);
-								fobj.write((char *)&acv, sizeof(acv));
-								fout.write((char *)&t, sizeof(t));
-								fout.close();
-							}	
+								cout << "\nConfirm the transaction (Y/N): ";
+								char ch;
+								cin >> ch;
+								if (ch=='Y'||ch=='y')
+								{
+									TRANSACTION t;
+									fstream fout("transaction.dat", ios::out|ios::app);
+									t.withdrawl(acv.return_accno(), acv.return_balance(), acv.return_balance()-money, write_date());
+									
+									acv.enter_balance(acv.return_balance()-money);
+									format_transaction();
+									cout << "\nTransaction Successfull."
+										 << "\nCurrent balance: Rs. " << acv.return_balance();
+									fobj.seekp(0);
+									fobj.write((char *)&acv, sizeof(acv));
+									fout.write((char *)&t, sizeof(t));
+									fout.close();
+								}
+							}
+							else
+								cout << "\nWrong PIN entered. Try again.";	
 						}
 						else
 							cout << "\nYou don't have enough balance to perform this transaction.";
@@ -636,24 +644,31 @@ class OPERATIONS
 						fobj.read((char *)&acv, sizeof(acv));
 						cout << "\nEnter deposit amount: Rs. ";
 						cin >> money;
-						cout << "\nConfirm the transaction (Y/N): ";
-						char ch;
-						cin >> ch;
-						if (ch=='Y'||ch=='y')
+						cout << "\nEnter PIN: ";
+						strcpy(temp_pin, crypt_pin());
+						if(strcmp(temp_pin, acv.return_pin())==0)
 						{
-							TRANSACTION t;
-							fstream fout("transaction.dat", ios::out|ios::app);
-							t.deposit(acv.return_accno(), acv.return_balance(), acv.return_balance()+money, write_date());
-							acv.enter_balance(acv.return_balance()+money);
-							format_transaction();
-							cout << "\nTransaction Successfull."
-								 << "\nCurrent balance: Rs. " << acv.return_balance();
-							fobj.seekp(0);
-							fobj.write((char *)&acv, sizeof(acv));
-							fobj.close();
-							fout.write((char *)&t, sizeof(t));
-							fout.close();
+							cout << "\nConfirm the transaction (Y/N): ";
+							char ch;
+							cin >> ch;
+							if (ch=='Y'||ch=='y')
+							{
+								TRANSACTION t;
+								fstream fout("transaction.dat", ios::out|ios::app);
+								t.deposit(acv.return_accno(), acv.return_balance(), acv.return_balance()+money, write_date());
+								acv.enter_balance(acv.return_balance()+money);
+								format_transaction();
+								cout << "\nTransaction Successfull."
+									 << "\nCurrent balance: Rs. " << acv.return_balance();
+								fobj.seekp(0);
+								fobj.write((char *)&acv, sizeof(acv));
+								fobj.close();
+								fout.write((char *)&t, sizeof(t));
+								fout.close();
+							}
 						}
+						else
+							cout << "\nWrong PIN entered. Try again.";
 						fobj.close();
 						goto lb;
 					}
@@ -671,64 +686,89 @@ class OPERATIONS
 							cout << "\nEnter the receiver's account number ";
 							cin >> temp_accno;
 							char ch;
-							cout << "\nConfirm the transaction (Y/N) : ";
-							cin >> ch;
-							if (ch=='Y'||ch=='y')
+							cout << "\nEnter PIN: ";
+							strcpy(temp_pin, crypt_pin());
+							if(strcmp(temp_pin, acv.return_pin())==0)
 							{
-								chdir("..\\");
-								fstream fin("account_holder.dat", ios::in);
-								account_holder ah1;
-								int flag=0;
-								while(!fin.eof())
+								cout << "\nConfirm the transaction (Y/N) : ";
+								cin >> ch;
+								if (ch=='Y'||ch=='y')
 								{
-									fin.read((char *)&ah1, sizeof(ah1));
-									if(temp_accno==ah1.return_accno())
-									{
-										flag=1;
-										break;
-									}
-								}
-								if (flag==1)
-								{
-									chdir(ah1.return_username());
-									fstream fobj1("account_details.dat", ios::in|ios::out);
-									account_creation_view acv1;
-									fobj1.read((char *)&acv1, sizeof(acv1));
-									TRANSACTION t;
-									fstream fout("transaction.dat", ios::out|ios::app);
-									t.deposit2(acv1.return_accno(), temp_acc, acv1.return_balance(), acv1.return_balance()+money, write_date());
-									fout.write((char *)&t, sizeof(t));
-									fout.close();
-									acv1.enter_balance(acv1.return_balance()+money);
-									fobj1.seekp(0);
-									fobj1.write((char *)&acv1, sizeof(acv1));
-									fobj1.close();
 									chdir("..\\");
-									chdir(temp_username);
-					                TRANSACTION t2;
-									fstream fout2("transaction.dat", ios::out|ios::app);
-									t2.transfer(acv.return_accno(), temp_accno, acv.return_balance(), acv.return_balance()-money, write_date());
-									acv.enter_balance(acv.return_balance()-money);
-									fobj.seekp(0);
-									fobj.write((char *)&acv, sizeof(acv));
-									fobj.close();
-									fout2.write((char *)&t2, sizeof(t2));
-									fout2.close();
-									format_transaction();
-									cout << "\nCurrent balance: Rs. " << acv.return_balance();
-									cout << "\nTransaction successfull.";
+									fstream fin("account_holder.dat", ios::in);
+									account_holder ah1;
+									int flag=0;
+									while(!fin.eof())
+									{
+										fin.read((char *)&ah1, sizeof(ah1));
+										if(temp_accno==ah1.return_accno())
+										{
+											if(ah1.return_status()=='Y')
+											{
+												flag=1;
+												break;
+											}
+											else
+											{
+												flag=2;
+												break;
+											}
+										}
+									}
+									if (flag==1)
+									{
+										chdir(ah1.return_username());
+										fstream fobj1("account_details.dat", ios::in|ios::out);
+										account_creation_view acv1;
+										fobj1.read((char *)&acv1, sizeof(acv1));
+										TRANSACTION t;
+										fstream fout("transaction.dat", ios::out|ios::app);
+										t.deposit2(acv1.return_accno(), temp_acc, acv1.return_balance(), acv1.return_balance()+money, write_date());
+										fout.write((char *)&t, sizeof(t));
+										fout.close();
+										acv1.enter_balance(acv1.return_balance()+money);
+										fobj1.seekp(0);
+										fobj1.write((char *)&acv1, sizeof(acv1));
+										fobj1.close();
+										chdir("..\\");
+										chdir(temp_username);
+						                TRANSACTION t2;
+										fstream fout2("transaction.dat", ios::out|ios::app);
+										t2.transfer(acv.return_accno(), temp_accno, acv.return_balance(), acv.return_balance()-money, write_date());
+										acv.enter_balance(acv.return_balance()-money);
+										fobj.seekp(0);
+										fobj.write((char *)&acv, sizeof(acv));
+										fobj.close();
+										fout2.write((char *)&t2, sizeof(t2));
+										fout2.close();
+										format_transaction();
+										cout << "\nCurrent balance: Rs. " << acv.return_balance();
+										cout << "\nTransaction successfull.";
+									}
+									else if(flag==2)
+									{
+										chdir(temp_username);
+										cout << "\nTransaction failed. The account you are sending to is closed.";
+									}
+									else if(flag==0)
+									{
+										cout << "\nThere is no such user exists with the given account number.";
+										cout << "\nTransaction failed.";
+									}
+									fin.close();
+									goto lb;
 								}
-								else if(flag==0)
+								else
 								{
-									cout << "\nThere is no such user exists with the given account number.";
-									cout << "\nTransaction failed.";
+									cout << "\nTransaction oborted by user.";
+									chdir(temp_username);
 								}
-								fin.close();
+								goto lb;	
 							}
 							else
 							{
-								cout << "\nTransaction oborted by user.";
-								chdir(temp_username);
+								cout << "\nWrong PIN entered. Try again.";
+								goto lb;
 							}
 						}
 						else
@@ -1036,12 +1076,13 @@ class ADMINISTRATOR_MENU
 				}
 				case 6:
 				{
-					fstream fout("bank_branch.dat", ios::out);
+					fstream fout("bank_branch.dat", ios::out|ios::app);
 					BANK_BRANCH bb;
 					bb.create_branch();
 					fout.sync();
 					fout.write((char *)&bb, sizeof(bb));
 					fout.close();
+					cout << "\nBranch creation successfull.";
 					goto lb;
 				}
 				case 7:
