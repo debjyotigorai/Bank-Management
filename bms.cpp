@@ -105,7 +105,7 @@ char * write_date()
 
 class BANK_BRANCH
 {
-	double branch_code;
+	double branch_code, usr_c;
 	char branch_name[50], branch_address[100];
 	public:
 		void create_branch()
@@ -119,6 +119,33 @@ class BANK_BRANCH
 			cin.sync();
 			cin.getline(branch_address, 100);
 		}
+		void edit_bb()
+		{
+			edit_lb:
+			int choose;
+			cout << "\nEditing Menu: "
+			     << "\n1. Edit branch name."
+			     << "\n2. Edit branch address."
+			     << "\n3. Goto previous menu."
+			     << "\nEnter correct option.";
+			cin >> choose;
+			switch(choose)
+			{
+				case 1:
+					cout << "\nEnter new branch name : ";
+					cin.getline(branch_name, 50);
+					goto edit_lb;
+				case 2:
+					cout << "\nEnter new branch address : ";
+					cin.getline(branch_address, 100);
+					goto edit_lb;
+				case 3:
+					break;
+				default:
+					cout << "\nYou have entered a wrong choice. Please try again.";
+					goto edit_lb;
+			}
+		}
 		double return_branch_code()
 		{
 			return branch_code;
@@ -127,9 +154,9 @@ class BANK_BRANCH
 		{
 			cout << "\nBranch Code: " << branch_code
 				 << "\nBranch Name: " << branch_name
-				 << "\nBranch Address: " << branch_address;
+				 << "\nBranch Address: " << branch_address << endl;
 		}
-		int search_bcode(double bcode)
+		int search_display_bcode(double bcode)
 		{
 			int flag=0;
 			fstream fin("bank_branch.dat", ios::in);
@@ -152,15 +179,18 @@ class BANK_BRANCH
 				else
 				{
 					char ch;
-					fin.close();
+                    fin.close();
+                    fstream fin2("bank_branch.dat", ios::in);
 					cout << "\nYou have entered a wrong branch code."
 						 << "\nIf you don't know search it instead by pressing Y : ";
 					cin >> ch;
 					if (ch=='Y'||ch=='y')
 					{
-						view_branch();
+						while(fin2.read((char *)&bb, sizeof(bb)))
+							bb.view_branch();
 						return 2;
 					}
+					fin2.close();
 				}
 				return 1;
 			}
@@ -251,7 +281,7 @@ class account_holder
 			cout << "\nEnter bank code: ";
 			cin >> bank_code;
 			BANK_BRANCH bb;
-			sf=bb.search_bcode(bank_code);
+			sf=bb.search_display_bcode(bank_code);
 			if (sf==1)
 			{
 				gen_accno();
@@ -829,9 +859,8 @@ void login_menu(char username[])
 			TRANSACTION t;
 			if(!fin.eof())
 			{
-				while(!fin.eof())
+				while(fin.read((char *)&t, sizeof(t)))
 				{
-					fin.read((char *)&t, sizeof(t));
 					t.view_transaction();
 				}
 			}
@@ -948,23 +977,21 @@ int account_write()
 class ADMINISTRATOR_MENU
 {
 	char temp_username[100];
-	int choose;
+	int choose, choose_u, choose_bb;
 	public:
-		void admin_menu()
+		void users()
 		{
 			lb:
-			cout << "\nAdministrator Menu: "
+			cout << "\nUser Menu: "
 				 << "\n1. View all users."
 				 << "\n2. Delete a user account."
-				 << "\n3. Create a new user account."
+				 << "\n3. Create a user account."
 				 << "\n4. Close or reopen a user's account."
 				 << "\n5. Edit a user's account."
-				 << "\n6. Create a bank branch."
-				 << "\n7. Reset program."
-				 << "\n8. Goto home."
+				 << "\n6. Goto previous menu."
 				 << "\nEnter correct option: ";
-			cin >> choose;
-			switch(choose)
+			cin >> choose_u;
+			switch(choose_u)
 			{
 				case 1:
 				{
@@ -972,12 +999,10 @@ class ADMINISTRATOR_MENU
 					fstream fin("account_holder.dat", ios::in);
 					if(fin)
 					{
-						fin.read((char *)&ach, sizeof(ach));
-						while(!fin.eof())
+						while(fin.read((char *)&ach, sizeof(ach)))
 						{
 							cout << "\nUSERNAME "<< "\t\t"<<"PASSWORD " << endl;
 							cout << ach.return_username() <<"\t\t\t" << ach.return_password() << endl;
-							fin.read((char *)&ach, sizeof(ach));
 						}
 						fin.close();
 					}
@@ -1008,7 +1033,10 @@ class ADMINISTRATOR_MENU
 					fout.close();
 					fin.close();
 					if (flag==0)
+					{
 						cout << "\nAccount doesn't exist.";
+						remove("temp_account_holder.dat");
+					}
 					else
 					{
 						remove("account_holder.dat");
@@ -1074,7 +1102,26 @@ class ADMINISTRATOR_MENU
 					fobj.close();
 					goto lb;
 				}
-				case 6:
+				case 6: 
+					break;
+				default:
+					cout << "\nEnter correct option.";
+					goto lb;
+			}
+		}
+		void bank_branch()
+		{
+			lb:
+			cout << "\nBank Branch Menu: "
+				 << "\n1. Create a Bank Branch."
+				 << "\n2. Edit a Bank Branch."
+				 << "\n3. Delete a Bank Branch."
+				 << "\n4. Goto previous menu."
+				 << "\nEnter correct option: ";
+			cin >> choose_bb;
+			switch(choose_bb)
+			{
+				case 1:
 				{
 					fstream fout("bank_branch.dat", ios::out|ios::app);
 					BANK_BRANCH bb;
@@ -1082,26 +1129,131 @@ class ADMINISTRATOR_MENU
 					fout.sync();
 					fout.write((char *)&bb, sizeof(bb));
 					fout.close();
-					cout << "\nBranch creation successfull.";
+					cout << "\nBranch creation successful.";
 					goto lb;
 				}
-				case 7:
+				case 2:
+				{
+					double bcode;
+					int flag=0, pos;
+					cout << "\nEnter the branch code of that bank that you want to edit.";
+					cin >> bcode;
+					fstream fin("bank_branch.dat", ios::in);
+					BANK_BRANCH bb;
+					if(fin)
+					{
+						while(!fin.eof())
+						{
+							pos=fin.tellg();
+							fin.read((char *)&bb, sizeof(bb));
+							if (bcode==bb.return_branch_code())
+							{
+								flag=1;
+								break;
+							}
+						}
+						fin.close();
+						if (flag==1)
+						{
+							fstream fout("bank_branch.dat", ios::out);
+							fout.seekp(pos);
+							bb.edit_bb();
+							fout.write((char *)&bb, sizeof(bb));
+							fout.seekp(0);
+							fout.close();
+						}
+						else
+							cout << "\nNo bank branch exits.";
+					}
+					else
+	            		cout << "\nNo bank branch exits.";
+	            	goto lb;
+				}
+				case 3:
+				{
+					double temp_bcode;
+					int flag=0;
+					cout << "\nEnter the branch code : ";
+					cin >> temp_bcode;
+					fstream fin("bank_branch.dat", ios::in);
+					if(fin)
+					{
+						fstream fout("temp_bank_branch.dat", ios::out);
+						BANK_BRANCH bb;
+						while(!fin.eof())
+						{
+							fin.read((char *)&bb, sizeof(bb));
+							if (temp_bcode!=bb.return_branch_code())
+							{
+								fout.write((char *)&bb, sizeof(bb));
+							}
+							else
+							{
+								flag=1;
+								continue;
+							}
+						}
+						fin.close();
+						fout.close();
+						if(flag==0)
+						{
+							cout << "\nBank branch does not exist.";
+							remove("temp_bank_branch.dat");
+						}
+						else
+						{
+							remove("bank_branch");
+							rename("temp_bank_branch.dat", "bank-branch");
+						}
+					}
+					else
+						cout << "\nBank branch does not exist.";
+					goto lb;
+				}
+				case 4:
+					break;
+				default:
+					cout << "\nYou have entered a wrong choice. Try again";
+					goto lb;
+			}	
+		}
+		void admin_menu()
+		{
+			lb:
+			cout << "\nAdministrator Menu: "
+				 << "\n1. Users menu."
+				 << "\n2. Bank Branch menu."
+				 << "\n3. Reset program."
+				 << "\n4. Goto home."
+				 << "\nEnter correct option: ";
+			cin >> choose;
+			switch(choose)
+			{
+				case 1:
+					users();
+					goto lb;
+				case 2:
+					bank_branch();
+					goto lb;
+				case 3:
 				{
 					char temp_username[100];
 					fstream fin("account_holder.dat", ios::in);
-					account_holder ah;
-					while(!fin.eof())
+					if(fin)
 					{
-						fin.read((char *)&ah, sizeof(ah));
-						strcpy(temp_username, ah.return_username());
-						chdir(temp_username);
-						remove("account_details.dat");
-						remove("transaction.dat");
-						chdir("..\\");
-						rmdir(temp_username);
+						account_holder ah;
+						while(!fin.eof())
+						{
+							fin.read((char *)&ah, sizeof(ah));
+							strcpy(temp_username, ah.return_username());
+							chdir(temp_username);
+							remove("account_details.dat");
+							remove("transaction.dat");
+							chdir("..\\");
+							rmdir(temp_username);
+						}
+						fin.close();
 					}
-					fin.sync();
-					fin.close();
 					remove("account_holder.dat");
 					remove("bank_branch.dat");
 					Sleep (500);
@@ -1114,7 +1266,7 @@ class ADMINISTRATOR_MENU
 					cout << "\nProgram has been reset.";
 					goto lb;
 				}
-				case 8:
+				case 4:
 					break;
 				default:
 				{
