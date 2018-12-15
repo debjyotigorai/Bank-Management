@@ -108,7 +108,7 @@ class BANK_BRANCH
 	double branch_code, usr_c;
 	char branch_name[50], branch_address[100];
 	public:
-		void create_branch()
+		double create_branch()
 		{
 			cout << "\nEnter 4 digit branch code: ";
 			cin >> branch_code;
@@ -118,6 +118,7 @@ class BANK_BRANCH
 			cout << "\nEnter branch address: ";
 			cin.sync();
 			cin.getline(branch_address, 100);
+			return branch_code;
 		}
 		void edit_bb()
 		{
@@ -329,6 +330,7 @@ class account_holder
 			}
 			else if(sf==0)
 				return sf;
+			return 0;
 		}
 };
 
@@ -713,7 +715,7 @@ class OPERATIONS
 						cin >> money;
 						if (acv.return_balance()-money>=0)
 						{
-							cout << "\nEnter the receiver's account number ";
+							cout << "\nEnter the receiver's account number: ";
 							cin >> temp_accno;
 							char ch;
 							cout << "\nEnter PIN: ";
@@ -915,30 +917,35 @@ void login()
 	cin.sync();
 	strcpy(temp_password, crypt_pass());
 	fstream fin("account_holder.dat", ios::in);
-	while(!fin.eof())
+	if(fin)
 	{
-		fin.read((char *)&ach, sizeof(ach));
-		if((strcmp(ach.return_username(), temp_username)==0)&&(strcmp(ach.return_password(), temp_password)==0))
+		while(!fin.eof())
 		{
-			flag=1;
-			break;
-		}		
-	}
-	fin.seekg(0);
-	fin.close();
-	if (flag==1)
-	{
-		if (ach.return_status()=='Y')
+			fin.read((char *)&ach, sizeof(ach));
+			if((strcmp(ach.return_username(), temp_username)==0)&&(strcmp(ach.return_password(), temp_password)==0))
 			{
-				chdir(ach.return_username());
-				cout << "\nLogin Successfull.";
-				login_menu(temp_username);
-				chdir("..\\");
-			}
-		else if (ach.return_status()=='N')
-			{
-				cout << "\nAccount has been closed by you or by the bank.";
-			}
+				flag=1;
+				break;
+			}		
+		}
+		fin.seekg(0);
+		fin.close();
+		if (flag==1)
+		{
+			if (ach.return_status()=='Y')
+				{
+					chdir(ach.return_username());
+					cout << "\nLogin Successfull.";
+					login_menu(temp_username);
+					chdir("..\\");
+				}
+			else if (ach.return_status()=='N')
+				{
+					cout << "\nAccount has been closed by you or by the bank.";
+				}
+		}
+		else
+			cout << "\nNo account has been created with us. Please create a new account.";
 	}
 	else
 		cout << "\nNo account has been created with us. Please create a new account.";
@@ -1102,6 +1109,45 @@ class ADMINISTRATOR_MENU
 					fobj.close();
 					goto lb;
 				}
+				case 5:
+				{
+					int flag=0;
+					cout << "\nEnter username: ";
+					cin.getline(temp_username, 100);
+					fstream fin("account_holder.dat", ios::in);
+					account_holder ah;
+					if(fin)
+					{
+						while(!fin.eof())
+						{
+							fin.read((char *)&ah, sizeof(ah));
+							if(strcmp(temp_username, ah.return_username())==0)
+							{
+								flag=1;
+								break;
+							}
+						}
+						fin.close();
+						if(flag==1)
+						{
+							account_creation_view acv;
+							fstream fin("account_details.dat", ios::in);
+							fin.read((char *)&acv, sizeof(acv));
+							fin.close();
+							fstream fout("account_details.dat", ios::out);
+							acv.edit();
+							fout.seekg(0);
+							fout.write((char *)&acv, sizeof(acv));
+							fout.close();
+							chdir("..\\");
+						}
+						else
+							cout << "\nNo account exists.";
+					}
+					else
+						cout << "\nNo account exists.";
+					goto lb;	
+				}
 				case 6: 
 					break;
 				default:
@@ -1123,13 +1169,37 @@ class ADMINISTRATOR_MENU
 			{
 				case 1:
 				{
-					fstream fout("bank_branch.dat", ios::out|ios::app);
+					double temp_bcode, flag=0;
+					fstream fin("bank_branch.dat", ios::in);
 					BANK_BRANCH bb;
-					bb.create_branch();
-					fout.sync();
-					fout.write((char *)&bb, sizeof(bb));
-					fout.close();
-					cout << "\nBranch creation successful.";
+					temp_bcode=bb.create_branch();
+					if(fin)
+					{
+						while(!fin.eof())
+						{
+							fin.read((char *)&bb, sizeof(bb));
+							if(temp_bcode==bb.return_branch_code())
+							{
+								flag=1;
+								break;
+							}
+						}
+						fin.close();
+						if(flag==0)
+						{
+							fstream fout("bank_branch.dat", ios::out|ios::app);
+							fout.write((char *)&bb, sizeof(bb));
+							fout.close();
+						}
+						else
+							cout << "\nThe bank branch already exists. No two branch can have same branch code. Please edit or delete the old one.";
+					}
+					else
+					{
+						fstream fout("bank_branch.dat", ios::out|ios::app);
+						fout.write((char *)&bb, sizeof(bb));
+						fout.close();
+					}
 					goto lb;
 				}
 				case 2:
